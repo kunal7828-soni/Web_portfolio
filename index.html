@@ -365,42 +365,99 @@
   const slides = document.querySelectorAll(".slide");
   const area = document.querySelector(".slider");
 
+  // Assign random initial velocity to each slide
   slides.forEach((slide, index) => {
-    /* Initial relative placement */
     slide.dataset.x = (index * 0.12) % 0.9;
     slide.dataset.y = index % 2 === 0 ? 0.25 : 0.55;
+    
+    // Random direction and speed
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 0.5 + Math.random() * 1.5;
+    slide.dataset.vx = Math.cos(angle) * speed;
+    slide.dataset.vy = Math.sin(angle) * speed;
   });
 
-  function applyRelativePositions() {
+  let draggedSlide = null;
+
+  function animate() {
     const parent = area.getBoundingClientRect();
 
     slides.forEach(slide => {
-      const x = parseFloat(slide.dataset.x);
-      const y = parseFloat(slide.dataset.y);
+      // Don't auto-move the slide if the user is dragging it
+      if (slide === draggedSlide) return;
 
-      let left = x * parent.width;
-      let top = y * parent.height;
+      let x = parseFloat(slide.dataset.x) * parent.width;
+      let y = parseFloat(slide.dataset.y) * parent.height;
+      let vx = parseFloat(slide.dataset.vx);
+      let vy = parseFloat(slide.dataset.vy);
+
+      x += vx;
+      y += vy;
 
       const maxLeft = parent.width - slide.offsetWidth;
       const maxTop = parent.height - slide.offsetHeight;
 
-      left = Math.max(0, Math.min(left, maxLeft));
-      top = Math.max(0, Math.min(top, maxTop));
+      // Bounce off walls
+      if (x <= 0) {
+        x = 0;
+        vx *= -1;
+      } else if (x >= maxLeft && maxLeft > 0) {
+        x = maxLeft;
+        vx *= -1;
+      }
 
-      slide.style.left = left + "px";
-      slide.style.top = top + "px";
+      if (y <= 0) {
+        y = 0;
+        vy *= -1;
+      } else if (y >= maxTop && maxTop > 0) {
+        y = maxTop;
+        vy *= -1;
+      }
+
+      slide.dataset.vx = vx;
+      slide.dataset.vy = vy;
+      
+      // Save relative position
+      if (parent.width > 0) slide.dataset.x = x / parent.width;
+      if (parent.height > 0) slide.dataset.y = y / parent.height;
+
+      slide.style.left = x + "px";
+      slide.style.top = y + "px";
+    });
+
+    requestAnimationFrame(animate);
+  }
+
+  function applyRelativePositions() {
+    const parent = area.getBoundingClientRect();
+    slides.forEach(slide => {
+      let x = parseFloat(slide.dataset.x) * parent.width;
+      let y = parseFloat(slide.dataset.y) * parent.height;
+
+      const maxLeft = parent.width - slide.offsetWidth;
+      const maxTop = parent.height - slide.offsetHeight;
+
+      x = Math.max(0, Math.min(x, maxLeft));
+      y = Math.max(0, Math.min(y, maxTop));
+
+      if (parent.width > 0) slide.dataset.x = x / parent.width;
+      if (parent.height > 0) slide.dataset.y = y / parent.height;
+
+      slide.style.left = x + "px";
+      slide.style.top = y + "px";
     });
   }
 
   applyRelativePositions();
+  animate(); // Start the floating animation
   window.addEventListener("resize", applyRelativePositions);
 
   /* ===== DRAG LOGIC ===== */
   slides.forEach(slide => {
-    let isDragging = false, offsetX, offsetY;
+    let offsetX, offsetY;
 
     const start = (e) => {
-      isDragging = true;
+      draggedSlide = slide;
       const rect = slide.getBoundingClientRect();
       const parent = area.getBoundingClientRect();
 
@@ -414,7 +471,7 @@
     };
 
     const move = (e) => {
-      if (!isDragging) return;
+      if (draggedSlide !== slide) return;
 
       const parent = area.getBoundingClientRect();
       const x = e.touches ? e.touches[0].clientX : e.clientX;
@@ -438,8 +495,10 @@
     };
 
     const end = () => {
-      isDragging = false;
-      slide.style.zIndex = 1;
+      if (draggedSlide === slide) {
+        draggedSlide = null;
+        slide.style.zIndex = 1;
+      }
     };
 
     slide.addEventListener("mousedown", start);

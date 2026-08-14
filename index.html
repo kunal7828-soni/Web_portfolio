@@ -509,10 +509,15 @@
 
     window.addEventListener("mouseup", end);
     window.addEventListener("touchend", end);
+
   });
 </script>
 
-
+<script>
+    document.addEventListener("contextmenu", function (event) {
+    event.preventDefault();
+});
+  </script>
 
 
 </html>
